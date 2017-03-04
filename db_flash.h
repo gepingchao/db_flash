@@ -1,12 +1,14 @@
 #ifndef __DB_FLASH__
 #define __DB_FLASH__
 
+#include "include.h"
+
 /*******************************************
 配置数据库
 ********************************************/
 #define DB_START_PAGE	30
-#define DB_CONFIG_SIZE	1
-#define DB_PAGE_NUMBER	6
+#define DB_CONFIG_PAGE_NUMBER	1
+#define DB_DATA_PAGE_NUMBER	6
 #define DB_DEFAULT_CELL_SIZE	20
 
 //#define DB_CELL_SIZE	(sizeof())	
@@ -14,18 +16,42 @@
 #define DB_CELL_SIZE 	DB_DEFAULT_CELL_SIZE	
 #endif
 
+typedef enum
+{
+	db_type_null = 0,
+	db_type_1,
+	db_type_2,
+	db_type_3,
+	db_type_4,
+	db_type_5,
+	db_type_6,
+	db_type_user_define_1,
+	db_type_user_define_2,
+	db_type_user_define_3,
+	db_type_user_define_4,
+	db_type_user_define_5,
+	db_type_user_define_6,
+}E_Save_Data_Type;//需要保存的结构体需要增加这个成员
+
 
 /**************************************
 
 ***************************************/
-#define DB_TOTAL_SIZE		(DB_PAGE_NUMBER+DB_CONFIG_SIZE)
+#define FLASH_START_ADDRESS	(0X08000000)
+#define DB_TOTAL_SIZE		(DB_DATA_PAGE_NUMBER+DB_CONFIG_PAGE_NUMBER)
 #define DB_CONFIG_PAGE		DB_START_PAGE
-#define DB_DATA_START_PAGE	(DB_START_PAGE+1)
-#define DB_DATA_END_PAGE	(DB_START_PAGE+1+DB_PAGE_NUMBER)
+#define DB_DATA_START_PAGE	(DB_START_PAGE+DB_CONFIG_PAGE_NUMBER)
+#define DB_DATA_PAGE(n)		(DB_DATA_START_PAGE + (n))
+#define DB_DATA_END_PAGE	(DB_START_PAGE+DB_CONFIG_PAGE_NUMBER+DB_DATA_PAGE_NUMBER)
 #define DB_PAGE_SIZE			FLASH_PAGE_SIZE
 #define DB_CELL_NUM_PER_PAGE	(DB_PAGE_SIZE/DB_CELL_SIZE)
 
-#define offsetof(struct_type, name) (size_t) ((char*)&((struct_type *)0)->name-(char *)((struct_type *)0))
+
+#define DB_CONFIG_PAGE_ADDRESS			(FLASH_START_ADDRESS + DB_CONFIG_PAGE*DB_PAGE_SIZE)
+#define DB_DATA_START_PAGE_ADDRESS		(FLASH_START_ADDRESS + DB_DATA_START_PAGE*DB_PAGE_SIZE)
+#define DB_DATA_PAGE_ADRESS(n)			(FLASH_START_ADDRESS + DB_DATA_PAGE(n)*DB_PAGE_SIZE)
+
+#define off_setof(struct_type, name) (size_t) ((char*)&((struct_type *)0)->name-(char *)((struct_type *)0))
 
 
 
@@ -64,16 +90,23 @@ typedef struct
 	//unsigned char flags;
 	unsigned char is_this_data_effect:1;
 	unsigned char is_this_data_change:1;
-	unsigned short index;
+	unsigned char is_this_data_deleted:1;
+	//unsigned char index;
+	//unsigned short offset;
 }S_Data_Info,*P_S_Data_Info;
-#define DATA_INFO_MAX_NUM	(FLASH_PAGE_SIZE/sizeof(S_Data_Info))
+#define DATA_INFO_MAX_NUM	((FLASH_PAGE_SIZE - 200)/DB_DATA_PAGE_NUMBER)
 
 typedef struct
 {
-	unsigned short point;
-	unsigned short save_num;
-	unsigned short delet_num;
-	S_Data_Info data[DATA_INFO_MAX_NUM];
+	E_Save_Data_Type data_type[DB_DATA_PAGE_NUMBER];//每个页保存额数据类型
+	unsigned char save_num[DB_DATA_PAGE_NUMBER];//每个页保存的数据个数
+	unsigned char delet_num[DB_DATA_PAGE_NUMBER];//每个页删除的数据个数
+	unsigned char point[DB_DATA_PAGE_NUMBER];//每个页的指针
+	unsigned char page_point[DB_DATA_PAGE_NUMBER];
+	unsigned short cell_size[DB_DATA_PAGE_NUMBER];//每个数据页的存储块大小
+
+	
+	S_Data_Info data_info[DB_DATA_PAGE_NUMBER][DATA_INFO_MAX_NUM];
 }S_Data_Map,*p_S_Data_Map;
 
 typedef struct
@@ -87,28 +120,32 @@ typedef struct
 
 typedef char(*compare_operat)(void* model,void* data,unsigned char compare_length);
 
-typedef struct
-{
-	unsigned char equal_count;
-	unsigned char point;
-	unsigned char equal_id[20];
-}S_Seek_Result,*P_S_Seek_Result;
 
 typedef struct
 {
 	unsigned char page;
+	unsigned char index;
+}S_Posiation,*P_S_Posiation;
+typedef struct
+{
+	unsigned char equal_count;
+	unsigned char point;
+	S_Posiation equal_id[20];
+	void* result[20];
+}S_Seek_Result,*P_S_Seek_Result;
+
+typedef struct
+{
+	E_Save_Data_Type data_type;
 	unsigned char expect_seek_num;//期望查找的个数,当查找到的个数达到期望值时立即停止查找
 
 	unsigned char flags_length;
 	unsigned char flags_offset;
-	unsigned char flags_effect_num;
+	unsigned char flags_effect_value;
 	unsigned char compare_member_length;
 	unsigned short compare_member_offset;
 	
-	unsigned short cell_size;
 	unsigned short start_compare_offset;
-
-	
 	compare_operat cmp_operat;
 	
 }S_Seek_Require,*P_S_Seek_Require;
@@ -117,5 +154,16 @@ typedef struct
 ********************************************/
 extern S_Data_Map data_map;
 extern S_Ram_Page ram_page;
+
+
+
+
+/********************************************
+函数
+********************************************/
+unsigned char load_flash_to_ram_page(unsigned char page_num);
+
+unsigned char seek_data(P_S_Seek_Require req,P_S_Seek_Result res);
+
 #endif
 
