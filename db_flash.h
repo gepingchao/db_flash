@@ -6,7 +6,7 @@
 /*******************************************
 配置数据库
 ********************************************/
-#define DB_START_PAGE	30
+#define DB_START_PAGE	40
 #define DB_CONFIG_PAGE_NUMBER	1
 #define DB_DATA_PAGE_NUMBER	6
 #define DB_DEFAULT_CELL_SIZE	20
@@ -59,7 +59,7 @@ typedef enum
 #define DB_DATA_START_PAGE_ADDRESS		(FLASH_START_ADDRESS + DB_DATA_START_PAGE*DB_PAGE_SIZE)
 #define DB_DATA_PAGE_ADRESS(n)			(FLASH_START_ADDRESS + DB_DATA_PAGE(n)*DB_PAGE_SIZE)
 
-#define off_setof(struct_type, name) (size_t) ((char*)&((struct_type *)0)->name-(char *)((struct_type *)0))
+#define offset_of(struct_type, name) 		(size_t)((char*)&((((struct_type) *)0)->name))
 
 
 
@@ -168,6 +168,26 @@ typedef struct
 	compare_operat cmp_operat;
 	
 }S_Seek_Require,*P_S_Seek_Require;
+
+
+
+typedef struct
+{
+	E_Save_Data_Type data_type;
+	unsigned char is_this_data_effect;
+	unsigned char primary_key;
+////////////////////////////////以上成员是必须存在的
+
+	unsigned char user_data_1[10];
+	unsigned char user_data_2[10];
+	
+	unsigned char user_data_3;
+	unsigned short user_data_4;
+	unsigned int user_data_5;
+}S_DB_Demo,*P_S_DB_Demo;
+
+
+
 /********************************************
 使用到的全局变量
 ********************************************/
@@ -180,9 +200,21 @@ extern S_Ram_Page ram_page;
 /********************************************
 函数
 ********************************************/
+void init_data_map(void);
+void updata_data_map(void);
+
+unsigned char creat_database(E_Save_Data_Type data_type,unsigned short cell_size);
+unsigned char set_cell_size(unsigned char page,unsigned short cell_size,unsigned char force);
+
+
 unsigned char load_flash_to_ram_page(unsigned char page_num);
+unsigned char save_ram_page_to_flash(void);
 
 unsigned char seek_data(P_S_Seek_Require req,P_S_Seek_Result res);
+unsigned char save_data(P_S_Seek_Require req,void* data);
+
+void db_test(void);
+
 
 #endif
 

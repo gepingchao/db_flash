@@ -358,7 +358,7 @@ unsigned char find_data_in_page(unsigned char page,P_S_Seek_Require req,P_S_Seek
 									seek_count --;
 									if(0 == seek_count)
 										{
-											return 2;
+											return 2;//找到的符合条件的数据达到期望个数
 										}
 								}
              
@@ -368,8 +368,8 @@ unsigned char find_data_in_page(unsigned char page,P_S_Seek_Require req,P_S_Seek
 							continue;
 						}
 				}
+			return 0;//未找到符合条件的数据
 		}
-	return 1;
 }
 
 
@@ -434,7 +434,25 @@ unsigned char save_data(P_S_Seek_Require req,void* data)
 
 
 
+void db_test(void)
+{
+	S_DB_Demo demo;
+	demo.data_type = db_type_user_define_1;
+	demo.is_this_data_effect = EFFECT;
+	demo.primary_key = 1;
+	demo.user_data_3 = 0x88;
+	init_data_map();
+	creat_database(demo.data_type,sizeof(demo));
 
+	S_Seek_Require req;
+	req.data_type = demo.data_type;
+	req.effect_flags_length = 1;
+	req.compare_member_offset = offsetof(S_DB_Demo,is_this_data_effect);
+	req.compare_value = EFFECT;
+	req.compare_member_offset = offsetof(S_DB_Demo,primary_key);
+	req.compare_type = compare_equel;
+	save_data(&req,&demo);
+}
 
 
 
