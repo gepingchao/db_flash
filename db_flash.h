@@ -34,6 +34,14 @@ typedef enum
 }E_Save_Data_Type;//需要保存的结构体需要增加这个成员
 
 
+typedef enum
+{
+	compare_equel = 0,
+	compare_greater,
+	compare_less,
+	compare_not_equel,
+}E_Compare_Reslut;
+
 /**************************************
 
 ***************************************/
@@ -139,13 +147,18 @@ typedef struct
 	E_Save_Data_Type data_type;
 	unsigned char expect_seek_num;//期望查找的个数,当查找到的个数达到期望值时立即停止查找
 
+	E_Compare_Reslut compare_type;
+
 	unsigned char flags_length;
 	unsigned char flags_offset;
 	unsigned char flags_effect_value;
+
+	unsigned char is_compare_member_signed;
+	unsigned char is_compare_member_is_string;
 	unsigned char compare_member_length;
-	unsigned short compare_member_offset;
-	
+	unsigned short compare_member_offset;	
 	unsigned short start_compare_offset;
+	
 	compare_operat cmp_operat;
 	
 }S_Seek_Require,*P_S_Seek_Require;

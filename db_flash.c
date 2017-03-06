@@ -99,8 +99,106 @@ unsigned short data_delet_num_in_page(unsigned char page)
 	return data_map.delet_num[page];
 }
 
+void get_value(void* address,unsigned char data_length,long* value)
+{
+	
+		switch(data_length)
+		{
+			case 1:
+				*value = (char*)address;
+				break;
+
+			case 2:
+				*value = (short*)address;
+				break;
+
+			case 4:
+				*value = (int*)address;
+				break;
+
+			case 8:
+				*value = (long*)address;
+				break;
+		}
+}
+
+void get_unsigned_value(void* address,unsigned char data_length,long* value)
+{
+	
+		switch(data_length)
+		{
+			case 1:
+				*value = (unsigned char*)address;
+				break;
+
+			case 2:
+				*value = (unsigned short*)address;
+				break;
+
+			case 4:
+				*value = (unsigned int*)address;
+				break;
+
+			case 8:
+				*value = (long*)address;
+				break;
+		}
+}
+
+E_Compare_Reslut math_compare (long model_value,void* compare_address,unsigned char data_length,unsigned char is_data_signed)
+{
+	long compare_value = 0;
+	if(1 == is_data_signed)
+		{
+			get_value(compare_address,data_length,&compare_value);
+		}
+	else
+		{
+			get_unsigned_value(compare_address,data_length,&compare_value);
+		}
+	if(model_value < compare_value)
+		{
+			return compare_greater;
+		}
+	if(model_value == compare_value)
+		{
+			return compare_equel;
+		}
+	if(model_value > compare_value)
+		{
+			return compare_less;
+		}
+	
+}
+
+
+E_Compare_Reslut char_compare(unsigned char* model,unsigned char* compare_str,unsigned char compare_str_length)
+{
+	unsigned char loopx = 0;
+	loopx = compare_str_length;
+	unsigned char* tmp_model = model;
+	unsigned char* tmp_compare_str = compare_str;
+	while(loopx)
+		{
+			if(*tmp_model == *tmp_compare_str)
+				{
+					tmp_model ++;
+					tmp_compare_str ++;
+				}
+			else
+				{
+					return compare_not_equel;
+				}
+			loopx --;
+		}
+	return compare_equel;
+}
+
 unsigned char compare_data(P_S_Seek_Require req,P_S_Seek_Result res)
 {
+	unsigned int start_cmp_address;
+	start_cmp_address = DB_DATA_PAGE_ADRESS(page) + (req->start_compare_offset)*cell_size_in_page(page);
+	if(req->)
 	return 1;
 }
 
@@ -109,8 +207,6 @@ unsigned char find_data_in_page(unsigned char page,P_S_Seek_Require req,P_S_Seek
 	unsigned char seek_count;
 	unsigned short loopx;
 	unsigned short tmp_save_num;
-	unsigned int start_cmp_address;
-	start_cmp_address = DB_DATA_PAGE_ADRESS(page) + (req->start_compare_offset)*cell_size_in_page(page);
 	seek_count = req->expect_seek_num;
 	while(seek_count)
 		{
