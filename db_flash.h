@@ -112,7 +112,7 @@ typedef struct
 	unsigned char point[DB_DATA_PAGE_NUMBER];//每个页的指针
 	unsigned char page_point[DB_DATA_PAGE_NUMBER];
 	unsigned short cell_size[DB_DATA_PAGE_NUMBER];//每个数据页的存储块大小
-
+	unsigned char this_data_effect;
 	
 	S_Data_Info data_info[DB_DATA_PAGE_NUMBER][DATA_INFO_MAX_NUM];
 }S_Data_Map,*p_S_Data_Map;
@@ -149,15 +149,21 @@ typedef struct
 
 	E_Compare_Reslut compare_type;
 
-	unsigned char flags_length;
-	unsigned char flags_offset;
-	unsigned char flags_effect_value;
+	unsigned char effect_flags_length;
+	unsigned char effect_flags_offset;
+	unsigned char effect_flags_value;
 
-	unsigned char is_compare_member_signed;
+	unsigned char primary_key_offset;
+	unsigned char primary_key_value;
+
 	unsigned char is_compare_member_is_string;
+	void* string_model;
+	
+	unsigned char is_compare_member_signed;
 	unsigned char compare_member_length;
 	unsigned short compare_member_offset;	
 	unsigned short start_compare_offset;
+	long compare_value;
 	
 	compare_operat cmp_operat;
 	
