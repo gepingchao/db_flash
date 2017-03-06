@@ -218,6 +218,7 @@ unsigned char find_data_in_page(unsigned char page,P_S_Seek_Require req,P_S_Seek
 							if(1 ==compare_data(req,res))
 								{
 									seek_count --;
+									if(0 == seek_count){return;}
 								}
              
 						}
