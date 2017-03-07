@@ -106,7 +106,7 @@ unsigned char is_page_full(unsigned char page)//检测指定的页是否存满
 		{
 			return 2;//未初始化
 		}
-	if(data_map.save_num[page] < (DB_PAGE_SIZE / data_map.cell_size[page]))
+	if((data_map.save_num[page] < (DB_PAGE_SIZE / data_map.cell_size[page]))||(data_map.delet_num[page]>0))
 		{
 			return 1;//页未满
 		}
@@ -412,6 +412,10 @@ unsigned char find_data_in_page(unsigned char page,P_S_Seek_Require req,P_S_Seek
 										res->equal_id[res->point].index = loopx;
 										res->equal_count ++;
 										res->point ++;
+										if((res->equal_count) ==  (req->expect_seek_num))
+											{
+												return 2;//找到的符合条件的数据达到期望个数
+											}
 									}
 									seek_count --;
 									if(0 == seek_count)
@@ -426,9 +430,13 @@ unsigned char find_data_in_page(unsigned char page,P_S_Seek_Require req,P_S_Seek
 							continue;
 						}
 				}
-			return 0;//未找到符合条件的数据
+			if(seek_count == req->expect_seek_num)
+				{
+					return 0;//未找到符合条件的数据
+				}
+			return 1;//找到符合条件的数据个数小于期望查找的个数
 		}
-    return 0;
+    return 3;//期望查找的个数为0  参数无效
 }
 
 
@@ -444,11 +452,15 @@ unsigned char seek_data(P_S_Seek_Require req,P_S_Seek_Result res)//seek
 				}
 			loopx --;
 		}
-	return 1;
+	return res->equal_count;
 }
 
 void insert_data_to_ram_page_index(unsigned char page,unsigned char index,void* data)
 {
+	if(index > (DB_PAGE_SIZE / data_map.cell_size[page]))
+		{
+			return ;
+		}
 	unsigned char* insert_addr;
 	insert_addr = ram_page.data + (index*data_map.cell_size[page]);
 	db_mem_copy((char*)data, (char*)insert_addr, data_map.cell_size[page]);
@@ -461,14 +473,21 @@ void insert_data_to_ram_page(unsigned char page,void* data)
 	if(data_map.delet_num[page]>0)//删除过数据需要在删除的位置添加数据
 		{
 			insert_point = get_1st_delet_point(page);
-			insert_data_to_ram_page_index(page,insert_point,data);			
-			set_data_delete(page,insert_point,0);
-			set_data_effect(page,insert_point,1);
-			data_map.delet_num[page] --;
-			ram_page.is_this_data_change = 1;
-			ram_page.is_this_data_effect = EFFECT;
-			return;
+			if(insert_point > (DB_PAGE_SIZE / data_map.cell_size[page]))
+				{					
+				}
+			else
+				{
+					insert_data_to_ram_page_index(page,insert_point,data);			
+					set_data_delete(page,insert_point,0);
+					set_data_effect(page,insert_point,1);
+					data_map.delet_num[page] --;
+					ram_page.is_this_data_change = 1;
+					ram_page.is_this_data_effect = EFFECT;
+					return;
+				}
 		}
+	
 	if(1 != is_page_full(page))//此页不能添加
 		{
 			return;
@@ -483,18 +502,18 @@ void insert_data_to_ram_page(unsigned char page,void* data)
 	return;
 }
 
-unsigned char save_data(P_S_Seek_Require req,void* data)
+unsigned char save_data(P_S_Seek_Require req,P_S_Seek_Result res,void* data)
 {
 	unsigned char page_num,loopx;
-	S_Seek_Result res;
+	//S_Seek_Result res = {0};
 	req->expect_seek_num =1;
 	page_num = find_data_type(req->data_type);
 	loopx = page_num;
 	while(loopx)
 		{
-			if(2 == find_data_in_page(data_map.page_point[loopx],req,&res))//数据更改
+			if(2 == find_data_in_page(data_map.page_point[loopx],req,res))//数据更改
 				{
-					insert_data_to_ram_page(res.equal_id[0].page,data);
+					insert_data_to_ram_page(res->equal_id[0].page,data);
 					return 2;//数据更改
 					//dummy_address_write((unsigned int)(res.result[0]),data,data_map.cell_size[loopx]);
 				}
@@ -511,6 +530,47 @@ unsigned char save_data(P_S_Seek_Require req,void* data)
 	return 0;//插入失败
 }
 
+void delete_data_page_index(unsigned char page,unsigned short index)
+{
+	set_data_delete(page,index,1);
+	set_data_effect(page,index,0);
+	set_data_change(page,index,1);
+	data_map.delet_num[page]++;
+}
+
+unsigned char delete_data(P_S_Seek_Require req,P_S_Seek_Result res)
+{
+	unsigned char page_num,loopx;
+	unsigned char delete_loop;
+	//S_Seek_Result res = {0};
+	if(0 == req->expect_seek_num)//如果未赋值,则默认为1
+		{
+			req->expect_seek_num = 1;
+		}
+	page_num = find_data_type(req->data_type);
+	loopx = page_num;
+	while(loopx)//全部页都要找一遍
+		{
+			if(2 == find_data_in_page(data_map.page_point[loopx],req,res))//数据更改
+				{
+					for(delete_loop = 0 ; delete_loop < res->equal_count ; delete_loop ++)
+						{
+							delete_data_page_index(res->equal_id[delete_loop].page,res->equal_id[delete_loop].index);
+						}
+					return 2;//删除个数到达期望查找个数
+				}
+			loopx --;
+		}
+	if(res->equal_count > 0)
+		{
+			for(delete_loop = 0 ; delete_loop < res->equal_count ; delete_loop ++)
+				{
+					delete_data_page_index(res->equal_id[delete_loop].page,res->equal_id[delete_loop].index);
+				}	
+			return 1;//已经全部删除,但是删除的个数还没达到期望个数
+		}
+	return 0;//未找到符合的数据
+}
 
 
 unsigned char db_commit(void)
@@ -558,15 +618,19 @@ void db_test(void)
 			req.effect_flags_value = EFFECT;
 			req.effect_flags_offset = offsetof(S_DB_Demo,is_this_data_effect);
 			
-			//req.compare_member_offset = offsetof(S_DB_Demo,is_this_data_effect);			
+			
 			req.compare_member_offset = offsetof(S_DB_Demo,primary_key);
 			req.compare_value = 1;
+			//req.compare_member_length = sizeof(demo.primary_key);//如果不指定比较的数的长度,那么从flash中取出的数据将会是初始化的0 必定不等于1 则此种情况下必定会添加到db尾部慎用  !!
+			
+	
 			req.primary_key_value = 1;
 			req.compare_type = compare_equel;
-			save_data(&req,&demo);//add10个数据
+			save_data(&req,&res,&demo);//add10个数据1~10
 		}
 	db_commit();
 	/////////////////////////////////////////////////////////////
+	set_mem((unsigned char*)&res,0,sizeof(S_Seek_Result));
 	set_mem((unsigned char*)&req,0,sizeof(S_Seek_Require));
 	req.expect_seek_num = 20;
 	req.data_type = db_type_user_define_1;
@@ -601,9 +665,75 @@ void db_test(void)
 	req.primary_key_value = 1;
 	req.compare_type = compare_greater;
 	seek_data(&req, &res);//查找demo中user_data_3大于4的数据
-	
+//////////////////////////////////////////////////////////////////////////	
 	set_mem((unsigned char*)&res,0,sizeof(S_Seek_Result));
 	set_mem((unsigned char*)&req,0,sizeof(S_Seek_Require));
+
+	req.expect_seek_num = 3;
+	req.data_type = db_type_user_define_1;
+	req.effect_flags_length = 1;
+	req.effect_flags_value = EFFECT;
+	req.effect_flags_offset = offsetof(S_DB_Demo,is_this_data_effect);
+	
+	req.compare_member_offset = offsetof(S_DB_Demo,primary_key);
+	req.compare_value = 1;
+	req.compare_member_length = sizeof(demo.primary_key);
+	req.primary_key_value = 1;
+	req.compare_type = compare_equel;
+	delete_data(&req, &res);//删除前3个数据
+//////////////////////////////////////////////////////////////////////////		
+	set_mem((unsigned char*)&res,0,sizeof(S_Seek_Result));
+	set_mem((unsigned char*)&req,0,sizeof(S_Seek_Require));
+
+
+	for(loopx = 0;loopx<5;loopx++)
+		{
+			set_mem((unsigned char*)&demo,0,sizeof(S_DB_Demo));
+			set_mem((unsigned char*)&req,0,sizeof(S_Seek_Require));
+			demo.data_type = db_type_user_define_1;
+			demo.is_this_data_effect = EFFECT;
+			demo.primary_key = 1;
+			demo.user_data_3 = loopx+12;
+
+			req.data_type = db_type_user_define_1;
+			req.effect_flags_length = 1;
+			req.effect_flags_value = EFFECT;
+			req.effect_flags_offset = offsetof(S_DB_Demo,is_this_data_effect);
+			
+			
+			req.compare_member_offset = offsetof(S_DB_Demo,primary_key);
+			req.compare_value = 1;
+			//req.compare_member_length = sizeof(demo.primary_key);//如果不指定比较的数的长度,那么从flash中取出的数据将会是初始化的0 必定不等于1 则此种情况下必定会添加到db尾部慎用  !!
+			
+	
+			req.primary_key_value = 1;
+			req.compare_type = compare_equel;
+			save_data(&req,&res,&demo);//add 5个数据12 13 14 15 16
+		}    	
+	db_commit();
+
+//////////////////////////////////////////////////////////////////////////	
+	set_mem((unsigned char*)&res,0,sizeof(S_Seek_Result));
+	set_mem((unsigned char*)&req,0,sizeof(S_Seek_Require));
+
+	req.expect_seek_num = 20;
+	req.data_type = db_type_user_define_1;
+	req.effect_flags_length = 1;
+	req.effect_flags_value = EFFECT;
+	req.effect_flags_offset = offsetof(S_DB_Demo,is_this_data_effect);
+	
+	req.compare_member_offset = offsetof(S_DB_Demo,user_data_3);
+	req.compare_value = 12;
+	req.compare_member_length = sizeof(demo.user_data_3);
+	req.primary_key_value = 1;
+	req.compare_type = compare_greater;
+	seek_data(&req, &res);//查找demo中user_data_3大于12的数据
+	
+//////////////////////////////////////////////////////////////////////////		
+	db_commit();
+	set_mem((unsigned char*)&res,0,sizeof(S_Seek_Result));
+	set_mem((unsigned char*)&req,0,sizeof(S_Seek_Require));
+	
 
 }
 

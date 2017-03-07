@@ -31,7 +31,7 @@ typedef struct
 	////////////////////////////////////////////////////以上成员必须是有意义的值
 	
 	unsigned char primary_key_offset;//主键偏移地址
-	unsigned char primary_key_value;//主键地址
+	unsigned short primary_key_value;//主键值 主键默认长度2
 	compare_operat cmp_operat;
 	
 }S_Seek_Require,*P_S_Seek_Require;
@@ -55,7 +55,8 @@ typedef struct
 
 
 
-save --->  save_data(&req,&demo);//add10个数据 req要保存的数据的要求信息(同查找中的req),要保存的数据地址
+save --->  save_data(&req,&demo);//add数据 req要保存的数据的要求信息(同查找中的req),要保存的数据地址
+找出第一个符合条件的的数据,然后将数据demo插入,如果没有复合调价的数据则在最后面添加
 
 
 

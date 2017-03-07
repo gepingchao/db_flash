@@ -107,9 +107,9 @@ typedef struct
 typedef struct
 {
 	E_Save_Data_Type data_type[DB_DATA_PAGE_NUMBER];//每个页保存额数据类型
-	unsigned char save_num[DB_DATA_PAGE_NUMBER];//每个页保存的数据个数
-	unsigned char delet_num[DB_DATA_PAGE_NUMBER];//每个页删除的数据个数
-	unsigned char point[DB_DATA_PAGE_NUMBER];//每个页的指针
+	unsigned short save_num[DB_DATA_PAGE_NUMBER];//每个页保存的数据个数
+	unsigned short delet_num[DB_DATA_PAGE_NUMBER];//每个页删除的数据个数
+	unsigned short point[DB_DATA_PAGE_NUMBER];//每个页的指针
 	unsigned char page_point[DB_DATA_PAGE_NUMBER];
 	unsigned short cell_size[DB_DATA_PAGE_NUMBER];//每个数据页的存储块大小
 	unsigned char this_data_effect;
@@ -136,10 +136,10 @@ typedef struct
 }S_Posiation,*P_S_Posiation;
 typedef struct
 {
-	unsigned char equal_count;
+	unsigned char equal_count;//查找的的符合条件的数据个数
 	unsigned char point;
-	S_Posiation equal_id[20];
-	void* result[20];
+	S_Posiation equal_id[20];//符合条件的数据的所保存的地点 页+偏移量
+	void* result[20];//符合条件的数据的flash中的地址
 }S_Seek_Result,*P_S_Seek_Result;
 
 typedef struct
@@ -165,7 +165,7 @@ typedef struct
 	////////////////////////////////////////////////////以上成员必须是有意义的值
 	
 	unsigned char primary_key_offset;//主键偏移地址
-	unsigned char primary_key_value;//主键地址
+	unsigned short primary_key_value;//主键值
 	compare_operat cmp_operat;
 	
 }S_Seek_Require,*P_S_Seek_Require;
@@ -200,18 +200,30 @@ extern S_Ram_Page ram_page;
 /********************************************
 函数
 ********************************************/
-void init_data_map(void);
 void updata_data_map(void);
 
-unsigned char creat_database(E_Save_Data_Type data_type,unsigned short cell_size);
 unsigned char set_cell_size(unsigned char page,unsigned short cell_size,unsigned char force);
-
 
 unsigned char load_flash_to_ram_page(unsigned char page_num);
 unsigned char save_ram_page_to_flash(void);
 
-unsigned char seek_data(P_S_Seek_Require req,P_S_Seek_Result res);
-unsigned char save_data(P_S_Seek_Require req,void* data);
+
+
+
+
+void init_data_map(void);//初始化
+
+unsigned char creat_database(E_Save_Data_Type data_type,unsigned short cell_size);//建表
+unsigned char seek_data(P_S_Seek_Require req,P_S_Seek_Result res);//查
+unsigned char save_data(P_S_Seek_Require req,P_S_Seek_Result res,void* data);//增&改
+unsigned char delete_data(P_S_Seek_Require req,P_S_Seek_Result res);//删
+unsigned char db_commit(void);//提交
+
+
+
+
+
+
 
 void db_test(void);
 
