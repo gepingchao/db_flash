@@ -132,7 +132,7 @@ typedef char(*compare_operat)(void* model,void* data,unsigned char compare_lengt
 typedef struct
 {
 	unsigned char page;
-	unsigned char index;
+	unsigned short index;
 }S_Posiation,*P_S_Posiation;
 typedef struct
 {
@@ -144,27 +144,28 @@ typedef struct
 
 typedef struct
 {
-	E_Save_Data_Type data_type;
+	E_Save_Data_Type data_type;//查找/添加的数据类型
 	unsigned char expect_seek_num;//期望查找的个数,当查找到的个数达到期望值时立即停止查找
 
-	E_Compare_Reslut compare_type;
+	E_Compare_Reslut compare_type;//比较方法 大于 小于 等于
 
-	unsigned char effect_flags_length;
-	unsigned char effect_flags_offset;
-	unsigned char effect_flags_value;
+	unsigned char effect_flags_length;//有效标志位长度
+	unsigned char effect_flags_offset;//有效位长度
+	unsigned char effect_flags_value;//有效标志位的值
 
-	unsigned char primary_key_offset;
-	unsigned char primary_key_value;
-
-	unsigned char is_compare_member_is_string;
-	void* string_model;
+	unsigned char is_compare_member_is_string;//要比较的是字符串吗
+	unsigned char is_compare_member_signed;//要比较的是有符号数吗
+	void* string_model;//字符串model
+	long compare_value;//要比较的数据
 	
-	unsigned char is_compare_member_signed;
-	unsigned char compare_member_length;
-	unsigned short compare_member_offset;	
-	unsigned short start_compare_offset;
-	long compare_value;
+	unsigned char compare_member_length;//要比较的数值长度
+	unsigned short compare_member_offset;//要比较的数据偏移量
+	unsigned short start_compare_offset;//开始比较的地址偏移量
+
+	////////////////////////////////////////////////////以上成员必须是有意义的值
 	
+	unsigned char primary_key_offset;//主键偏移地址
+	unsigned char primary_key_value;//主键地址
 	compare_operat cmp_operat;
 	
 }S_Seek_Require,*P_S_Seek_Require;
@@ -179,7 +180,6 @@ typedef struct
 ////////////////////////////////以上成员是必须存在的
 
 	unsigned char user_data_1[10];
-	unsigned char user_data_2[10];
 	
 	unsigned char user_data_3;
 	unsigned short user_data_4;

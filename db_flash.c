@@ -13,6 +13,60 @@ void set_mem(unsigned char* data,unsigned char value,unsigned short length)//ÉèÖ
 		}
 }
 
+void db_mem_copy(char* from_addr,char* to_addr,unsigned short length)
+{
+	char* tmp_from_addr;
+	char* tmp_to_addr;
+	tmp_from_addr = from_addr;
+	tmp_to_addr = to_addr;
+	while(length --)
+		{
+			*(tmp_to_addr ++) = *(tmp_from_addr ++);
+		}
+}
+
+
+unsigned char is_data_changed(unsigned char page,unsigned index)
+{
+	if(data_map.data_info[page][index].is_this_data_change)
+		{
+			return 1;
+		}
+	return 0;
+}
+void set_data_change(unsigned char page,unsigned index,unsigned char enable)
+{
+	data_map.data_info[page][index].is_this_data_change= enable;
+}
+
+unsigned char is_data_effect(unsigned char page,unsigned index)//ÅĞ¶ÏÒ³ÖĞÖ¸¶¨Êı¾İ¿éÊÇ·ñÓĞĞ§
+{
+	if(data_map.data_info[page][index].is_this_data_effect)
+		{
+			return 1;
+		}
+	return 0;
+}
+
+void set_data_effect(unsigned char page,unsigned index,unsigned char enable)
+{
+	data_map.data_info[page][index].is_this_data_effect= enable;
+}
+
+unsigned char is_data_delet(unsigned char page,unsigned index)//ÅĞ¶ÏÒ³ÖĞÖ¸¶¨Êı¾İ¿éÊÇ·ñ±»É¾³ıÁË
+{
+	if(data_map.data_info[page][index].is_this_data_deleted)
+		{
+			return 1;
+		}
+	return 0;
+}
+void set_data_delete(unsigned char page,unsigned index,unsigned char enable)
+{
+	data_map.data_info[page][index].is_this_data_deleted= enable;
+}
+
+
 void updata_data_map(void)//½«data_mapĞ´Èëflash
 {
 	write_flash(DB_CONFIG_PAGE_ADDRESS,(char*)&data_map,sizeof(data_map));
@@ -146,7 +200,7 @@ unsigned char load_flash_to_ram_page(unsigned char page_num)//½«Ö¸¶¨Ò³µÄÊı¾İ´æ´¢
 			save_ram_page_to_flash();
 			read_flash_page_to_ram();
 		}
-	if(ram_page.copy_page_number == page_num)
+	if((ram_page.is_this_data_effect)&&(ram_page.copy_page_number == page_num))
 		{
 			return 2;
 		}
@@ -164,28 +218,24 @@ unsigned char find_data_type(E_Save_Data_Type data_type)//ÕÒ³öÖ¸¶¨Êı¾İÀàĞÍµÄ±£´æ
 		{
 			if(data_map.data_type[loopx] == data_type)
 				{
-					data_map.page_point[count] = data_type;
+					data_map.page_point[count] = loopx;
 					count ++;
 				}
 		}
 	return count;
 }
 
-unsigned char is_data_effect(unsigned char page,unsigned index)//ÅĞ¶ÏÒ³ÖĞÖ¸¶¨Êı¾İ¿éÊÇ·ñÓĞĞ§
+unsigned short get_1st_delet_point(unsigned char page)
 {
-	if(data_map.data_info[page][index].is_this_data_effect)
+	unsigned short loopx;
+	for(loopx = 0 ; loopx < data_map.save_num[page] ; loopx ++)
 		{
-			return 1;
+			if(1 == is_data_delet(page,loopx))
+				{					
+					return loopx;
+				}
 		}
-	return 0;
-}
-unsigned char is_data_delet(unsigned char page,unsigned index)//ÅĞ¶ÏÒ³ÖĞÖ¸¶¨Êı¾İ¿éÊÇ·ñ±»É¾³ıÁË
-{
-	if(data_map.data_info[page][index].is_this_data_deleted)
-		{
-			return 1;
-		}
-	return 0;
+	return 0XFFFF;//Î´ÕÒµ½É¾³ıµÄµã
 }
 
 unsigned short data_save_num_in_page(unsigned char page)//Ö¸¶¨Ò³ÖĞÊı¾İ¿éµÄ±£´æÊıÁ¿Êµ¼ÊÊıÁ¿¿ÉÄÜ»áĞ¡ÓÚ·µ»ØÖµ,Õâ¸öÖµ¾ÍÊÇ±í´´½¨ÒÔÀ´±£´æ¹ıµÃ×î´óÖµ
@@ -309,9 +359,9 @@ unsigned char compare_data(void* compare,P_S_Seek_Require req,P_S_Seek_Result re
 				{
 					if(res != NULL)
 						{
-							res->equal_count ++;
-							res->result[res->point] = compare;
-							res->point ++;
+							//res->equal_count ++;
+							//res->result[res->point] = compare;
+							//res->point ++;
 						}
 					return 1;
 				}
@@ -325,9 +375,9 @@ unsigned char compare_data(void* compare,P_S_Seek_Require req,P_S_Seek_Result re
 		{
 			if(res != NULL)
 				{
-					res->equal_count ++;
-					res->result[res->point] = compare;
-					res->point ++;
+					//res->equal_count ++;
+					//res->result[res->point] = compare;
+					//res->point ++;
 				}
 			return 1;
 		}
@@ -352,9 +402,17 @@ unsigned char find_data_in_page(unsigned char page,P_S_Seek_Require req,P_S_Seek
 				{
 					if(is_data_effect(page,loopx))
 						{
-							compare_ddress = (void*)(DB_DATA_PAGE_ADRESS(page) + (req->compare_member_offset + loopx)*(data_map.cell_size[page]));
+							compare_ddress = (void*)(DB_DATA_PAGE_ADRESS(page) + (req->start_compare_offset+ loopx)*(data_map.cell_size[page]));
 							if(1 ==compare_data(compare_ddress,req,res))
 								{
+								if(res != NULL)
+									{
+										res->result[res->point] = compare_ddress;
+										res->equal_id[res->point].page = page;
+										res->equal_id[res->point].index = loopx;
+										res->equal_count ++;
+										res->point ++;
+									}
 									seek_count --;
 									if(0 == seek_count)
 										{
@@ -370,6 +428,7 @@ unsigned char find_data_in_page(unsigned char page,P_S_Seek_Require req,P_S_Seek
 				}
 			return 0;//Î´ÕÒµ½·ûºÏÌõ¼şµÄÊı¾İ
 		}
+    return 0;
 }
 
 
@@ -388,9 +447,40 @@ unsigned char seek_data(P_S_Seek_Require req,P_S_Seek_Result res)//seek
 	return 1;
 }
 
-void insert_data_to_page(unsigned char page)
+void insert_data_to_ram_page_index(unsigned char page,unsigned char index,void* data)
+{
+	unsigned char* insert_addr;
+	insert_addr = ram_page.data + (index*data_map.cell_size[page]);
+	db_mem_copy((char*)data, (char*)insert_addr, data_map.cell_size[page]);
+}
+
+void insert_data_to_ram_page(unsigned char page,void* data)
 {	
+	unsigned short insert_point = 0;
 	load_flash_to_ram_page(page);
+	if(data_map.delet_num[page]>0)//É¾³ı¹ıÊı¾İĞèÒªÔÚÉ¾³ıµÄÎ»ÖÃÌí¼ÓÊı¾İ
+		{
+			insert_point = get_1st_delet_point(page);
+			insert_data_to_ram_page_index(page,insert_point,data);			
+			set_data_delete(page,insert_point,0);
+			set_data_effect(page,insert_point,1);
+			data_map.delet_num[page] --;
+			ram_page.is_this_data_change = 1;
+			ram_page.is_this_data_effect = EFFECT;
+			return;
+		}
+	if(1 != is_page_full(page))//´ËÒ³²»ÄÜÌí¼Ó
+		{
+			return;
+		}
+	insert_point = data_map.save_num[page]++;
+	insert_data_to_ram_page_index(page,insert_point,data);
+	set_data_delete(page,insert_point,0);
+	set_data_effect(page,insert_point,1);
+	ram_page.is_this_data_change = 1;
+	ram_page.is_this_data_effect = EFFECT;
+	
+	return;
 }
 
 unsigned char save_data(P_S_Seek_Require req,void* data)
@@ -402,23 +492,33 @@ unsigned char save_data(P_S_Seek_Require req,void* data)
 	loopx = page_num;
 	while(loopx)
 		{
-			if(2 == find_data_in_page(data_map.page_point[loopx],req,&res))
+			if(2 == find_data_in_page(data_map.page_point[loopx],req,&res))//Êı¾İ¸ü¸Ä
 				{
-					load_flash_to_ram_page(loopx);//½«²éÕÒµÄµÄÊı¾İËùÔÚÒ³ÔØÈëÄÚ´æ
-					dummy_address_write((unsigned int)(res.result[0]),data,data_map.cell_size[loopx]);
+					insert_data_to_ram_page(res.equal_id[0].page,data);
+					return 2;//Êı¾İ¸ü¸Ä
+					//dummy_address_write((unsigned int)(res.result[0]),data,data_map.cell_size[loopx]);
 				}
 			loopx --;
 		}
 	for(loopx = 0 ; loopx < page_num ; loopx++)
 		{
-			
+			if(1 == is_page_full(data_map.page_point[loopx]))
+				{
+					insert_data_to_ram_page(data_map.page_point[loopx],data);
+					return 1;
+				}
 		}
-	return 1;
+	return 0;//²åÈëÊ§°Ü
 }
 
 
 
-
+unsigned char db_commit(void)
+{
+	updata_data_map();
+	save_ram_page_to_flash();
+	return 1;
+}
 
 
 
@@ -435,25 +535,86 @@ unsigned char save_data(P_S_Seek_Require req,void* data)
 
 
 void db_test(void)
-{
-	S_DB_Demo demo;
-	demo.data_type = db_type_user_define_1;
-	demo.is_this_data_effect = EFFECT;
-	demo.primary_key = 1;
-	demo.user_data_3 = 0x88;
+{	
 	init_data_map();
-	creat_database(demo.data_type,sizeof(demo));
+	S_DB_Demo demo = {0};		
+	S_Seek_Require req = {0};
+	S_Seek_Result res = {0};
+	
+	creat_database(db_type_user_define_1,sizeof(demo));
+	
+	unsigned char loopx = 0;
+	for(;loopx<10;loopx++)
+		{
+			set_mem((unsigned char*)&demo,0,sizeof(S_DB_Demo));
+			set_mem((unsigned char*)&req,0,sizeof(S_Seek_Require));
+			demo.data_type = db_type_user_define_1;
+			demo.is_this_data_effect = EFFECT;
+			demo.primary_key = 1;
+			demo.user_data_3 = loopx;
 
-	S_Seek_Require req;
-	req.data_type = demo.data_type;
+			req.data_type = db_type_user_define_1;
+			req.effect_flags_length = 1;
+			req.effect_flags_value = EFFECT;
+			req.effect_flags_offset = offsetof(S_DB_Demo,is_this_data_effect);
+			
+			//req.compare_member_offset = offsetof(S_DB_Demo,is_this_data_effect);			
+			req.compare_member_offset = offsetof(S_DB_Demo,primary_key);
+			req.compare_value = 1;
+			req.primary_key_value = 1;
+			req.compare_type = compare_equel;
+			save_data(&req,&demo);//add10¸öÊı¾İ
+		}
+	db_commit();
+	/////////////////////////////////////////////////////////////
+	set_mem((unsigned char*)&req,0,sizeof(S_Seek_Require));
+	req.expect_seek_num = 20;
+	req.data_type = db_type_user_define_1;
+	
 	req.effect_flags_length = 1;
-	req.compare_member_offset = offsetof(S_DB_Demo,is_this_data_effect);
-	req.compare_value = EFFECT;
+	req.effect_flags_value = EFFECT;
+	req.effect_flags_offset = offsetof(S_DB_Demo,is_this_data_effect);
+	
+	//req.compare_member_offset = offsetof(S_DB_Demo,is_this_data_effect);
 	req.compare_member_offset = offsetof(S_DB_Demo,primary_key);
+	req.compare_value = 1;
+	req.compare_member_length = sizeof(demo.primary_key);
+	
+	req.primary_key_value = 1;
 	req.compare_type = compare_equel;
-	save_data(&req,&demo);
+	seek_data(&req, &res);//²éÕÒdemoÖĞprimary_keyÎª1µÄÊı¾İ
+
+	
+/////////////////////////////////////////////////////////////////////////
+	set_mem((unsigned char*)&res,0,sizeof(S_Seek_Result));
+	set_mem((unsigned char*)&req,0,sizeof(S_Seek_Require));
+	
+	req.expect_seek_num = 20;
+	req.data_type = db_type_user_define_1;
+	req.effect_flags_length = 1;
+	req.effect_flags_value = EFFECT;
+	req.effect_flags_offset = offsetof(S_DB_Demo,is_this_data_effect);
+	
+	req.compare_member_offset = offsetof(S_DB_Demo,user_data_3);
+	req.compare_value = 4;
+	req.compare_member_length = sizeof(demo.user_data_3);
+	req.primary_key_value = 1;
+	req.compare_type = compare_greater;
+	seek_data(&req, &res);//²éÕÒdemoÖĞuser_data_3´óÓÚ4µÄÊı¾İ
+	
+	set_mem((unsigned char*)&res,0,sizeof(S_Seek_Result));
+	set_mem((unsigned char*)&req,0,sizeof(S_Seek_Require));
+
 }
 
+
+void deinit_seek_require(P_S_Seek_Require req)
+{
+	req->compare_member_length = 1;
+	req->effect_flags_length = 1;
+	req->effect_flags_value = EFFECT;
+	req->expect_seek_num = 1;
+}
 
 
 
