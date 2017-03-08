@@ -104,9 +104,9 @@ unsigned char is_page_full(unsigned char page)//检测指定的页是否存满
 {
 	if(0 == data_map.cell_size[page])
 		{
-			return 2;//未初始化
+			return 2;//未初始化或初始化错误
 		}
-	if((data_map.save_num[page] < (DB_PAGE_SIZE / data_map.cell_size[page]))||(data_map.delet_num[page]>0))
+	if((data_map.save_num[page] < (data_map.total_save_num[page]))||(data_map.delet_num[page]>0))
 		{
 			return 1;//页未满
 		}
@@ -116,6 +116,10 @@ unsigned char is_page_full(unsigned char page)//检测指定的页是否存满
 unsigned char creat_database(E_Save_Data_Type data_type,unsigned short cell_size)//创建一个数据表
 {
 	unsigned char loopx;
+	if((db_type_null == data_type)||(0 == cell_size))
+		{
+			return 3;//参数错误创建失败
+		}
 	for(loopx =0 ; loopx < DB_DATA_PAGE_NUMBER ; loopx ++)
 		{
 			if((data_map.data_type[loopx] == data_type)&&(1 == is_page_full(loopx)))
@@ -129,6 +133,7 @@ unsigned char creat_database(E_Save_Data_Type data_type,unsigned short cell_size
 				{
 					data_map.data_type[loopx] = data_type;
 					data_map.cell_size[loopx] =cell_size;
+					data_map.total_save_num[loopx] = (DB_PAGE_SIZE/cell_size) > DATA_INFO_MAX_NUM ? DATA_INFO_MAX_NUM : (DB_PAGE_SIZE/cell_size);
 					data_map.page_point[0] = loopx;
 					return 1;//创建了一个新的表
 				}
@@ -403,7 +408,7 @@ unsigned char find_data_in_page(unsigned char page,P_S_Seek_Require req,P_S_Seek
 					if(is_data_effect(page,loopx))
 						{
 							compare_ddress = (void*)(DB_DATA_PAGE_ADRESS(page) + (req->start_compare_offset+ loopx)*(data_map.cell_size[page]));
-							if(1 ==compare_data(compare_ddress,req,res))
+							if(1 ==compare_data(compare_ddress,req,res))//符合查找条件
 								{
 								if(res != NULL)
 									{
@@ -511,7 +516,7 @@ unsigned char save_data(P_S_Seek_Require req,P_S_Seek_Result res,void* data)
 	loopx = page_num;
 	while(loopx)
 		{
-			if(2 == find_data_in_page(data_map.page_point[loopx],req,res))//数据更改
+			if(2 == find_data_in_page(data_map.page_point[loopx],req,res))//找到符合条件的数据 数据更改
 				{
 					insert_data_to_ram_page(res->equal_id[0].page,data);
 					return 2;//数据更改
@@ -524,7 +529,20 @@ unsigned char save_data(P_S_Seek_Require req,P_S_Seek_Result res,void* data)
 			if(1 == is_page_full(data_map.page_point[loopx]))
 				{
 					insert_data_to_ram_page(data_map.page_point[loopx],data);
-					return 1;
+					return 1;//在已存在的页里插入数据
+				}
+		}
+	if(3 == creat_database(req->data_type,req->data_length))
+		{
+			return 4;//参数错误保存失败
+		}
+	page_num = find_data_type(req->data_type);
+	for(loopx = 0 ; loopx < page_num ; loopx++)
+		{
+			if(1 == is_page_full(data_map.page_point[loopx]))
+				{
+					insert_data_to_ram_page(data_map.page_point[loopx],data);
+					return 3;//新建了一个表存数据
 				}
 		}
 	return 0;//插入失败
@@ -580,7 +598,14 @@ unsigned char db_commit(void)
 	return 1;
 }
 
-
+void init_db(void)
+{
+	init_data_map();
+	//creat_database(db_type_user_define_1,sizeof(demo));
+	//creat_database(db_type_user_define_2,sizeof(demo));
+	//creat_database(db_type_user_define_3,sizeof(demo));
+	//creat_database(db_type_user_define_4,sizeof(demo));//根据实际情况建表
+}
 
 
 
@@ -621,8 +646,9 @@ void db_test(void)
 			
 			req.compare_member_offset = offsetof(S_DB_Demo,primary_key);
 			req.compare_value = 1;
-			//req.compare_member_length = sizeof(demo.primary_key);//如果不指定比较的数的长度,那么从flash中取出的数据将会是初始化的0 必定不等于1 则此种情况下必定会添加到db尾部慎用  !!
-			
+			//req.compare_member_length = sizeof(demo.primary_key);
+			//如果不指定比较的数的长度,那么从flash中取出的数据将会是初始化的0 必定不等于compare_value的1 则此种情况下必定会添加到db尾部慎用  !!
+			//同理如果compare_value=0 则必定符合条件,此时相当于从flash头开始添加慎用!!!
 	
 			req.primary_key_value = 1;
 			req.compare_type = compare_equel;
@@ -710,7 +736,7 @@ void db_test(void)
 			req.compare_type = compare_equel;
 			save_data(&req,&res,&demo);//add 5个数据12 13 14 15 16
 		}    	
-	db_commit();
+	db_commit();//save只是将数据写到ram中,需要同步,seek从flash中查找,如果没有提交的话则刚更改的不能被查询到
 
 //////////////////////////////////////////////////////////////////////////	
 	set_mem((unsigned char*)&res,0,sizeof(S_Seek_Result));

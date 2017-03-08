@@ -23,9 +23,9 @@ typedef enum
 	db_type_2,
 	db_type_3,
 	db_type_4,
-	db_type_5,
-	db_type_6,
-	db_type_user_define_1,
+	db_type_time,
+	db_type_std_point,
+	db_type_user_define_1,//成员名字可以根据实际更改
 	db_type_user_define_2,
 	db_type_user_define_3,
 	db_type_user_define_4,
@@ -107,6 +107,7 @@ typedef struct
 typedef struct
 {
 	E_Save_Data_Type data_type[DB_DATA_PAGE_NUMBER];//每个页保存额数据类型
+	unsigned short total_save_num[DB_DATA_PAGE_NUMBER];//每个页最大数据保存个数
 	unsigned short save_num[DB_DATA_PAGE_NUMBER];//每个页保存的数据个数
 	unsigned short delet_num[DB_DATA_PAGE_NUMBER];//每个页删除的数据个数
 	unsigned short point[DB_DATA_PAGE_NUMBER];//每个页的指针
@@ -145,6 +146,7 @@ typedef struct
 typedef struct
 {
 	E_Save_Data_Type data_type;//查找/添加的数据类型
+	unsigned short data_length;//save数据时需要指定要保存的数据长度
 	unsigned char expect_seek_num;//期望查找的个数,当查找到的个数达到期望值时立即停止查找
 
 	E_Compare_Reslut compare_type;//比较方法 大于 小于 等于
@@ -163,7 +165,6 @@ typedef struct
 	unsigned short start_compare_offset;//开始比较的地址偏移量
 
 	////////////////////////////////////////////////////以上成员必须是有意义的值
-	
 	unsigned char primary_key_offset;//主键偏移地址
 	unsigned short primary_key_value;//主键值
 	compare_operat cmp_operat;
@@ -176,7 +177,7 @@ typedef struct
 {
 	E_Save_Data_Type data_type;
 	unsigned char is_this_data_effect;
-	unsigned char primary_key;
+	unsigned char primary_key;//这个成员名字可以自定如ID主要用处查找数据
 ////////////////////////////////以上成员是必须存在的
 
 	unsigned char user_data_1[10];
