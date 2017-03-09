@@ -28,10 +28,27 @@ typedef enum
 	db_type_user_define_1,//成员名字可以根据实际更改
 	db_type_user_define_2,
 	db_type_user_define_3,
-	db_type_user_define_4,
+	db_type_posiation,
 	db_type_user_define_5,
 	db_type_user_define_6,
 }E_Save_Data_Type;//需要保存的结构体需要增加这个成员
+
+
+typedef struct
+{
+	E_Save_Data_Type data_type;
+	unsigned char is_this_data_effect;
+	unsigned char primary_key;//这个成员名字可以自定如ID主要用处查找数据
+////////////////////////////////以上成员是必须存在的
+
+	unsigned char user_data_1[10];
+	
+	unsigned char user_data_3;
+	unsigned short user_data_4;
+	unsigned int user_data_5;
+}S_DB_Demo,*P_S_DB_Demo;
+
+
 
 
 typedef enum
@@ -173,20 +190,6 @@ typedef struct
 
 
 
-typedef struct
-{
-	E_Save_Data_Type data_type;
-	unsigned char is_this_data_effect;
-	unsigned char primary_key;//这个成员名字可以自定如ID主要用处查找数据
-////////////////////////////////以上成员是必须存在的
-
-	unsigned char user_data_1[10];
-	
-	unsigned char user_data_3;
-	unsigned short user_data_4;
-	unsigned int user_data_5;
-}S_DB_Demo,*P_S_DB_Demo;
-
 
 
 /********************************************
@@ -201,6 +204,8 @@ extern S_Ram_Page ram_page;
 /********************************************
 函数
 ********************************************/
+
+void set_mem(unsigned char* data,unsigned char value,unsigned short length);
 void updata_data_map(void);
 
 unsigned char set_cell_size(unsigned char page,unsigned short cell_size,unsigned char force);
@@ -211,7 +216,7 @@ unsigned char save_ram_page_to_flash(void);
 
 
 
-
+void reinit_data_map(void);//重置
 void init_data_map(void);//初始化
 
 unsigned char creat_database(E_Save_Data_Type data_type,unsigned short cell_size);//建表

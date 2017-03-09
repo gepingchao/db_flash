@@ -82,7 +82,13 @@ void init_data_map(void)//初始化data_map ,data_map用于查找数据等
 			updata_data_map();
 		}
 }
-	
+
+void reinit_data_map(void)
+{
+	set_mem((unsigned char*)&data_map,0,sizeof(data_map));
+	data_map.this_data_effect = EFFECT;
+	updata_data_map();
+}
 
 
 
@@ -177,6 +183,8 @@ unsigned char dummy_address_read(unsigned address,char* data,unsigned short len)
 
 unsigned char save_ram_page_to_flash(void)//将ram缓存区的数据写入flash
 {
+	if(ram_page.is_this_data_change == 0)
+		{return 2;}
 	unsigned char reslut;
 	reslut = write_flash(DB_DATA_PAGE_ADRESS(ram_page.copy_page_number),(char*)(ram_page.data),DB_PAGE_SIZE);
 	if(reslut)
@@ -398,7 +406,7 @@ unsigned char find_data_in_page(unsigned char page,P_S_Seek_Require req,P_S_Seek
 	unsigned char seek_count;
 	unsigned short loopx;
 	unsigned short tmp_save_num;
-	void* compare_ddress;
+	void* compare_address;
 	seek_count = req->expect_seek_num;
 	while(seek_count)
 		{
@@ -407,12 +415,19 @@ unsigned char find_data_in_page(unsigned char page,P_S_Seek_Require req,P_S_Seek
 				{
 					if(is_data_effect(page,loopx))
 						{
-							compare_ddress = (void*)(DB_DATA_PAGE_ADRESS(page) + (req->start_compare_offset+ loopx)*(data_map.cell_size[page]));
-							if(1 ==compare_data(compare_ddress,req,res))//符合查找条件
+							if((ram_page.copy_page_number == page)&&(ram_page.is_this_data_effect == 1))//如果此页加载到内存则首先到ram中查找
+								{
+									compare_address = (void*)(ram_page.data+ (req->start_compare_offset+ loopx)*(data_map.cell_size[page]));
+								}
+							else
+								{
+									compare_address = (void*)(DB_DATA_PAGE_ADRESS(page) + (req->start_compare_offset+ loopx)*(data_map.cell_size[page]));
+								}
+							if(1 ==compare_data(compare_address,req,res))//符合查找条件
 								{
 								if(res != NULL)
 									{
-										res->result[res->point] = compare_ddress;
+										res->result[res->point] = compare_address;
 										res->equal_id[res->point].page = page;
 										res->equal_id[res->point].index = loopx;
 										res->equal_count ++;
@@ -466,6 +481,9 @@ void insert_data_to_ram_page_index(unsigned char page,unsigned char index,void* 
 		{
 			return ;
 		}
+	
+	load_flash_to_ram_page(page);
+	
 	unsigned char* insert_addr;
 	insert_addr = ram_page.data + (index*data_map.cell_size[page]);
 	db_mem_copy((char*)data, (char*)insert_addr, data_map.cell_size[page]);
@@ -474,7 +492,6 @@ void insert_data_to_ram_page_index(unsigned char page,unsigned char index,void* 
 void insert_data_to_ram_page(unsigned char page,void* data)
 {	
 	unsigned short insert_point = 0;
-	load_flash_to_ram_page(page);
 	if(data_map.delet_num[page]>0)//删除过数据需要在删除的位置添加数据
 		{
 			insert_point = get_1st_delet_point(page);
@@ -518,7 +535,8 @@ unsigned char save_data(P_S_Seek_Require req,P_S_Seek_Result res,void* data)
 		{
 			if(2 == find_data_in_page(data_map.page_point[loopx],req,res))//找到符合条件的数据 数据更改
 				{
-					insert_data_to_ram_page(res->equal_id[0].page,data);
+					//insert_data_to_ram_page(res->equal_id[0].page,data);
+					insert_data_to_ram_page_index(res->equal_id[0].page,res->equal_id[0].index,data);//插入
 					return 2;//数据更改
 					//dummy_address_write((unsigned int)(res.result[0]),data,data_map.cell_size[loopx]);
 				}
@@ -596,15 +614,6 @@ unsigned char db_commit(void)
 	updata_data_map();
 	save_ram_page_to_flash();
 	return 1;
-}
-
-void init_db(void)
-{
-	init_data_map();
-	//creat_database(db_type_user_define_1,sizeof(demo));
-	//creat_database(db_type_user_define_2,sizeof(demo));
-	//creat_database(db_type_user_define_3,sizeof(demo));
-	//creat_database(db_type_user_define_4,sizeof(demo));//根据实际情况建表
 }
 
 
